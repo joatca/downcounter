@@ -42,6 +42,11 @@ type alias Counter =
     --, relation : Relation
     , timeSpan : Int
     }
+type alias Unit =
+    { suffix : String
+    , div : Int
+    , pad : Int
+    }
 type alias Model =
     { zone : Time.Zone
     , time : Time.Posix
@@ -69,8 +74,20 @@ eventToCounter now zone event =
 
 makeCounters : Time.Posix -> Time.Zone -> List Counter
 makeCounters now zone =
-    List.map (eventToCounter now zone) [ { name = "Christmas"
+    List.map (eventToCounter now zone) [ { name = "Christmas Day"
                                          , isoSuffix = "-12-25"
+                                         , duration = 24*60*60
+                                         }
+                                       , { name = "New Year's Day"
+                                         , isoSuffix = "-01-01"
+                                         , duration = 24*60*60
+                                         }
+                                       , { name = "Remembrance Day"
+                                         , isoSuffix = "-11-11"
+                                         , duration = 24*60*60
+                                         }
+                                       , { name = "National Day for Truth and Reconciliation"
+                                         , isoSuffix = "-09-30"
                                          , duration = 24*60*60
                                          }
                                        , { name = "Halloween"
@@ -79,6 +96,10 @@ makeCounters now zone =
                                          }
                                        , { name = "Valentine's Day"
                                          , isoSuffix = "-02-14"
+                                         , duration = 24*60*60
+                                         }
+                                       , { name = "Canada Day"
+                                         , isoSuffix = "-07-01"
                                          , duration = 24*60*60
                                          }
                                        ]
@@ -132,9 +153,22 @@ view model =
       div [] [ h1 [] [ text (hour ++ ":" ++ minute ++ ":" ++ second) ]
              , div [] (List.map viewCounter model.counters)
              ]
-      
+
+secsToSpan : Int -> List Unit -> List (Html Msg)
+secsToSpan remaining unitList =
+    case unitList of
+        [] ->
+            []
+        unit :: units ->
+            span [ ] [ text ((String.pad unit.pad '0' (String.fromInt (modBy unit.div remaining))) ++ unit.suffix) ] :: secsToSpan (remaining // unit.div) units
+
+hms = [ { suffix = "", div = 60, pad = 2 }
+      , { suffix = ":", div = 60, pad = 2 }
+      , { suffix = ":", div = 24, pad = 2 }
+      , { suffix = "d ", div = 1000000, pad = 3 }
+      ]
 viewCounter : Counter -> Html Msg
 viewCounter counter =
     div [] [ (span [ style "color" "green" ] [ text (counter.name ++ " ") ])
-           , (span [ style "color" "blue" ] [ text (String.fromInt (counter.timeSpan//1000)) ])
+           , (span [ style "color" "blue" ] (List.reverse (secsToSpan (counter.timeSpan//1000) hms)) )
            ]
