@@ -83,7 +83,7 @@ makeCounters now zone =
                                          , duration = 24*60*60
                                          }
                                        , { name = "Remembrance Day"
-                                         , isoSuffix = "-11-11"
+                                         , isoSuffix = "-11-11T11:11:00"
                                          , duration = 24*60*60
                                          }
                                        , { name = "National Day for Truth and Reconciliation"
