@@ -12,6 +12,7 @@ module Main exposing (..)
 import Browser
 import Html exposing (..)
 import Html.Attributes exposing (..)
+import Dict exposing (Dict)
 import Task
 import Time
 import Iso8601 exposing (toTime)
@@ -44,9 +45,11 @@ type alias Counter =
     }
 type alias Unit =
     { suffix : String
+    , name : String
     , div : Int
     , pad : Int
     }
+type alias UnitVals = Dict String Int
 type alias Model =
     { zone : Time.Zone
     , time : Time.Posix
@@ -145,13 +148,7 @@ subscriptions model =
 -- VIEW
 view : Model -> Html Msg
 view model =
-  let
-    hour   = String.padLeft 2 '0' (String.fromInt (Time.toHour   model.zone model.time))
-    minute = String.padLeft 2 '0' (String.fromInt (Time.toMinute model.zone model.time))
-    second = String.padLeft 2 '0' (String.fromInt (Time.toSecond model.zone model.time))
-  in
-      div [] [ h1 [] [ text (hour ++ ":" ++ minute ++ ":" ++ second) ]
-             , div [] (List.map viewCounter model.counters)
+      div [] [ div [] (List.map viewCounter model.counters)
              ]
 
 secsToSpan : Int -> List Unit -> List (Html Msg)
@@ -161,14 +158,22 @@ secsToSpan remaining unitList =
             []
         unit :: units ->
             span [ ] [ text ((String.pad unit.pad '0' (String.fromInt (modBy unit.div remaining))) ++ unit.suffix) ] :: secsToSpan (remaining // unit.div) units
+secsToUnits : Int -> List Unit -> UnitVals
+secsToUnits remaining unitList =
+    case unitList of
+        [] ->
+            Dict.empty
+        unit :: units ->
+            Dict.insert unit.name (modBy unit.div remaining) (secsToUnits (remaining // unit.div) units)
 
-hms = [ { suffix = "", div = 60, pad = 2 }
-      , { suffix = ":", div = 60, pad = 2 }
-      , { suffix = ":", div = 24, pad = 2 }
-      , { suffix = "d ", div = 1000000, pad = 3 }
+hms = [ { name = "s", suffix = "", div = 60, pad = 2 }
+      , { name = "m", suffix = ":", div = 60, pad = 2 }
+      , { name = "h", suffix = ":", div = 24, pad = 2 }
+      , { name = "d", suffix = "d ", div = 1000000, pad = 3 }
       ]
 viewCounter : Counter -> Html Msg
 viewCounter counter =
-    div [] [ (span [ style "color" "green" ] [ text (counter.name ++ " ") ])
+    div [] [ (span [ style "color" "green" ]
+                  [ text (counter.name ++ " " ++ (Debug.toString (secsToUnits (counter.timeSpan//1000) hms)) ++ " ") ])
            , (span [ style "color" "blue" ] (List.reverse (secsToSpan (counter.timeSpan//1000) hms)) )
            ]
