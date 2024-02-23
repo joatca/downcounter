@@ -9,6 +9,7 @@
 
 module Main exposing (..)
 
+import Maybe exposing (..)
 import Browser
 import Html exposing (Html)
 --import Html.Attributes
@@ -87,9 +88,8 @@ eventToCounter now zone event =
                             if ((Time.posixToMillis posix1) >= (Time.posixToMillis now)) then -- in the future using the current year
                                 posix1
                             else -- in the past using the current year, use the next year
-                                case Iso8601.toTime ((String.fromInt (year+1)) ++ event.isoSuffix) of
-                                    Err _ -> now
-                                    Ok posix2 -> posix2
+                                Iso8601.toTime ((String.fromInt (year+1)) ++ event.isoSuffix)
+                                    |> Result.withDefault now
         timeSpan = (Time.posixToMillis timeFinal) - (Time.posixToMillis now)
         unitVals = secsToUnits hms (timeSpan//1000)
     in
@@ -138,7 +138,7 @@ init _ =
         now =
             Time.millisToPosix 0
     in
-        ( Model zone now (List.sortBy .timeSpan (makeCounters now zone))
+        ( Model zone now (makeCounters now zone |> List.sortBy .timeSpan)
         , Task.perform AdjustTimeZone Time.here
         )
 
@@ -152,7 +152,7 @@ update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
     Tick newTime ->
-      ( { model | time = newTime, counters = List.sortBy .timeSpan (makeCounters newTime model.zone) }
+      ( { model | time = newTime, counters = makeCounters newTime model.zone |> List.sortBy .timeSpan }
       , Cmd.none
       )
 
@@ -208,13 +208,7 @@ view model =
                     ]
                 }
             ])
+
 viewNum : Int -> String -> Maybe Int -> String
 viewNum pad suffix val =
-    (String.pad pad '0'
-        (String.fromInt
-             (case val of
-                  Nothing -> 0
-                  Just v -> v
-             )
-        )
-    ) ++ suffix
+    (val |> withDefault 0 |> String.fromInt |> String.pad pad '0') ++ suffix
