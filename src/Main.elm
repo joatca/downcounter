@@ -10,14 +10,18 @@
 module Main exposing (..)
 
 import Browser
-import Html exposing (..)
-import Html.Attributes exposing (..)
+import Html exposing (Html)
+--import Html.Attributes
 import Dict exposing (Dict)
 import Task
 import Time
 import Iso8601 exposing (toTime)
 import Debug
-
+import Element exposing (Element, el, text, column, table,
+                             fill, shrink, width, rgb255, spacing, centerX, padding)
+import Element.Background as Background
+import Element.Border as Border
+import Element.Font as Font
 
 -- MAIN
 main =
@@ -42,6 +46,7 @@ type alias Counter =
     { name : String
     --, relation : Relation
     , timeSpan : Int
+    , unitVals : UnitVals
     }
 type alias Unit =
     { suffix : String
@@ -56,6 +61,21 @@ type alias Model =
     , counters : List Counter
     }
 
+-- given a time span in seconds, return a UnitVals dictionary
+hms = [ { name = "s", suffix = "", div = 60, pad = 2 }
+      , { name = "m", suffix = ":", div = 60, pad = 2 }
+      , { name = "h", suffix = ":", div = 24, pad = 2 }
+      , { name = "d", suffix = "d ", div = 1000000, pad = 3 }
+      ]
+secsToUnits : List Unit -> Int -> UnitVals
+secsToUnits unitList remaining =
+    case unitList of
+        [] ->
+            Dict.empty
+        unit :: units ->
+            Dict.insert unit.name
+                (modBy unit.div remaining)
+                (secsToUnits units (remaining // unit.div))
 -- given an Event and the current time, return a Counter with everything computed
 eventToCounter : Time.Posix -> Time.Zone -> Event -> Counter
 eventToCounter now zone event =
@@ -70,9 +90,12 @@ eventToCounter now zone event =
                                 case Iso8601.toTime ((String.fromInt (year+1)) ++ event.isoSuffix) of
                                     Err _ -> now
                                     Ok posix2 -> posix2
+        timeSpan = (Time.posixToMillis timeFinal) - (Time.posixToMillis now)
+        unitVals = secsToUnits hms (timeSpan//1000)
     in
         { name = event.name
-        , timeSpan = (Time.posixToMillis timeFinal) - (Time.posixToMillis now)
+        , timeSpan = timeSpan
+        , unitVals = unitVals
         }
 
 makeCounters : Time.Posix -> Time.Zone -> List Counter
@@ -147,33 +170,51 @@ subscriptions model =
       
 -- VIEW
 view : Model -> Html Msg
+-- view model =
+--       div [] [ div [] (List.map viewCounter model.counters)
+--              ]
 view model =
-      div [] [ div [] (List.map viewCounter model.counters)
-             ]
-
-secsToSpan : Int -> List Unit -> List (Html Msg)
-secsToSpan remaining unitList =
-    case unitList of
-        [] ->
-            []
-        unit :: units ->
-            span [ ] [ text ((String.pad unit.pad '0' (String.fromInt (modBy unit.div remaining))) ++ unit.suffix) ] :: secsToSpan (remaining // unit.div) units
-secsToUnits : Int -> List Unit -> UnitVals
-secsToUnits remaining unitList =
-    case unitList of
-        [] ->
-            Dict.empty
-        unit :: units ->
-            Dict.insert unit.name (modBy unit.div remaining) (secsToUnits (remaining // unit.div) units)
-
-hms = [ { name = "s", suffix = "", div = 60, pad = 2 }
-      , { name = "m", suffix = ":", div = 60, pad = 2 }
-      , { name = "h", suffix = ":", div = 24, pad = 2 }
-      , { name = "d", suffix = "d ", div = 1000000, pad = 3 }
-      ]
-viewCounter : Counter -> Html Msg
-viewCounter counter =
-    div [] [ (span [ style "color" "green" ]
-                  [ text (counter.name ++ " " ++ (Debug.toString (secsToUnits (counter.timeSpan//1000) hms)) ++ " ") ])
-           , (span [ style "color" "blue" ] (List.reverse (secsToSpan (counter.timeSpan//1000) hms)) )
-           ]
+    Element.layout []
+        (column [ width fill, centerX ]
+            [ text "Countdown"
+            , table []
+                { data = model.counters
+                , columns =
+                    [ { header = text "Name"
+                      , width = fill
+                      , view =
+                          \ctr -> text ctr.name
+                      }
+                    , { header = text "D"
+                      , width = shrink
+                      , view =
+                          \ctr -> text (viewNum 2 "D" (Dict.get "d" ctr.unitVals))
+                      }
+                    , { header = text "H"
+                      , width = shrink
+                      , view =
+                          \ctr -> text (viewNum 2 ":" (Dict.get "h" ctr.unitVals))
+                      }
+                    , { header = text "M"
+                      , width = shrink
+                      , view =
+                          \ctr -> text (viewNum 2 ":" (Dict.get "m" ctr.unitVals))
+                      }
+                    , { header = text "S"
+                      , width = shrink
+                      , view =
+                          \ctr -> text (viewNum 2 "" (Dict.get "s" ctr.unitVals))
+                      }
+                    ]
+                }
+            ])
+viewNum : Int -> String -> Maybe Int -> String
+viewNum pad suffix val =
+    (String.pad pad '0'
+        (String.fromInt
+             (case val of
+                  Nothing -> 0
+                  Just v -> v
+             )
+        )
+    ) ++ suffix
