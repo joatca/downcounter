@@ -75,7 +75,8 @@ secsToUnits unitList remaining =
             Dict.empty
         unit :: units ->
             Dict.insert unit.name
-                (modBy unit.div remaining)
+                -- don't take the modulus if this is the last one
+                (if List.isEmpty units then remaining else modBy unit.div remaining)
                 (secsToUnits units (remaining // unit.div))
 -- given an Event and the current time, return a Counter with everything computed
 eventToCounter : Time.Posix -> Time.Zone -> Event -> Counter
