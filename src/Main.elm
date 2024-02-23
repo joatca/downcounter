@@ -89,7 +89,8 @@ eventToCounter now zone event =
                             if ((Time.posixToMillis posix1) >= (Time.posixToMillis now)) then -- in the future using the current year
                                 posix1
                             else -- in the past using the current year, use the next year
-                                Iso8601.toTime ((String.fromInt (year+1)) ++ event.isoSuffix)
+                                (String.fromInt (year+1)) ++ event.isoSuffix
+                                    |> Iso8601.toTime
                                     |> Result.withDefault now
         timeSpan = (Time.posixToMillis timeFinal) - (Time.posixToMillis now)
         unitVals = secsToUnits hms (timeSpan//1000)
