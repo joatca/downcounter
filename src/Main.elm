@@ -43,10 +43,11 @@ type alias Event =
 type Relation
     = Before
     | During
-type alias Counter =
+type alias NextEvent =
     { name : String
     --, relation : Relation
     , timeSpan : Int
+    --, nextEvent : Posix
     , unitVals : UnitVals
     }
 type alias Unit =
@@ -59,7 +60,7 @@ type alias UnitVals = Dict String Int
 type alias Model =
     { zone : Zone
     , time : Posix
-    , counters : List Counter
+    , nextEvents : List NextEvent
     }
 
 -- given a time span in seconds, return a UnitVals dictionary
@@ -77,9 +78,9 @@ secsToUnits unitList remaining =
                 -- don't take the modulus if this is the last one
                 (if List.isEmpty units then remaining else modBy unit.div remaining)
                 (secsToUnits units (remaining // unit.div))
--- given an Event and the current time, return a Counter with everything computed
-eventToCounter : Posix -> Zone -> Event -> Counter
-eventToCounter now zone event =
+-- given an Event and the current time, return a NextEvent with everything computed
+eventToNextEvent : Posix -> Zone -> Event -> NextEvent
+eventToNextEvent now zone event =
     let
         year = toYear zone now
         parts = event.parts
@@ -128,9 +129,9 @@ events = [ { name = "Christmas Day"
           , duration = 24*60*60
           }
         ]
-makeCounters : Posix -> Zone -> List Counter
-makeCounters now zone =
-    List.map (eventToCounter now zone) events
+makeNextEvents : Posix -> Zone -> List NextEvent
+makeNextEvents now zone =
+    List.map (eventToNextEvent now zone) events
 
 init : () -> (Model, Cmd Msg)
 init _ =
@@ -140,7 +141,7 @@ init _ =
         now =
             millisToPosix 0
     in
-        ( Model zone now (makeCounters now zone |> List.sortBy .timeSpan)
+        ( Model zone now (makeNextEvents now zone |> List.sortBy .timeSpan)
         , Task.perform AdjustTimeZone Time.here
         )
 
@@ -154,7 +155,7 @@ update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
     Tick newTime ->
-      ( { model | time = newTime, counters = makeCounters newTime model.zone |> List.sortBy .timeSpan }
+      ( { model | time = newTime, nextEvents = makeNextEvents newTime model.zone |> List.sortBy .timeSpan }
       , Cmd.none
       )
 
@@ -173,14 +174,14 @@ subscriptions model =
 -- VIEW
 view : Model -> Html Msg
 -- view model =
---       div [] [ div [] (List.map viewCounter model.counters)
+--       div [] [ div [] (List.map viewNextEvent model.NextEvents)
 --              ]
 view model =
     Element.layout []
         (column [ width fill, centerX ]
             [ text "Countdown"
             , table []
-                { data = model.counters
+                { data = model.nextEvents
                 , columns =
                     [ { header = text "Name"
                       , width = fill
