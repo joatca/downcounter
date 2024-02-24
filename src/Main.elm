@@ -37,7 +37,6 @@ main =
 -- MODEL
 type alias Event =
     { name : String
-    , isoSuffix : String -- for an event of non-zero duration, this is the *end*
     , parts : Parts -- for an event of non-zero duration, this is the *end*
     , duration : Int -- duration in milliseconds
     }
@@ -101,37 +100,30 @@ eventToCounter now zone event =
 
 baseParts = { year = 0, month = Jan, day = 1, hour = 0, minute = 0, second = 0, millisecond = 0 }
 events = [ { name = "Christmas Day"
-          , isoSuffix = "-12-25"
           , parts = { baseParts | month = Dec, day = 25 }
           , duration = 24*60*60
           }
         , { name = "New Year's Day"
-          , isoSuffix = "-01-01"
           , parts = { baseParts | month = Jan, day = 1 }
           , duration = 24*60*60
           }
         , { name = "Remembrance Day"
-          , isoSuffix = "-11-11T11:11:00"
           , parts = { baseParts | month = Nov, day = 11, hour = 11, minute = 11 }
           , duration = 24*60*60
           }
         , { name = "National Day for Truth and Reconciliation"
-          , isoSuffix = "-09-30"
           , parts = { baseParts | month = Sep, day = 30 }
           , duration = 24*60*60
           }
         , { name = "Halloween"
-          , isoSuffix = "-10-31"
           , parts = { baseParts | month = Oct, day = 31 }
           , duration = 24*60*60
           }
         , { name = "Valentine's Day"
-          , isoSuffix = "-02-14"
           , parts = { baseParts | month = Feb, day = 14 }
           , duration = 24*60*60
           }
         , { name = "Canada Day"
-          , isoSuffix = "-07-01"
           , parts = { baseParts | month = Jul, day = 1 }
           , duration = 24*60*60
           }
