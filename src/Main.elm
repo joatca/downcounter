@@ -64,8 +64,7 @@ type alias Model =
     }
 
 -- given a time span in seconds, return a UnitVals dictionary
-hms = [ { name = "s", suffix = "", div = 60, pad = 2 }
-      , { name = "m", suffix = ":", div = 60, pad = 2 }
+hms = [ { name = "m", suffix = ":", div = 60, pad = 2 }
       , { name = "h", suffix = ":", div = 24, pad = 2 }
       , { name = "d", suffix = "d ", div = 1000000, pad = 3 }
       ]
@@ -93,7 +92,7 @@ eventToCounter now zone event =
                         -- the event this year is in the past, find it for next year
                         partsToPosix zone { parts | year = year + 1 }
         timeSpan = (posixToMillis timeFinal) - (posixToMillis now)
-        unitVals = secsToUnits hms (timeSpan//1000)
+        unitVals = secsToUnits hms (timeSpan//60000)
     in
         { name = event.name
         , timeSpan = timeSpan
@@ -209,12 +208,7 @@ view model =
                     , { header = text "M"
                       , width = shrink
                       , view =
-                          \ctr -> text (viewNum 2 ":" (Dict.get "m" ctr.unitVals))
-                      }
-                    , { header = text "S"
-                      , width = shrink
-                      , view =
-                          \ctr -> text (viewNum 2 "" (Dict.get "s" ctr.unitVals))
+                          \ctr -> text (viewNum 2 "" (Dict.get "m" ctr.unitVals))
                       }
                     ]
                 }
