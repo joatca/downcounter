@@ -57,24 +57,27 @@ hms = [ { name = "s", suffix = "", div = 60, pad = 2 }
       , { name = "d", suffix = "d ", div = 1000000, pad = 3 }
       ]
 
+-- some "constants"
+day = 86400 * 1000
+
 -- identity date finder function; replaces only the given year and returns the exact datetime
 exactDate : Parts -> Int -> Zone -> Posix
 exactDate parts year zone =
     partsToPosix zone { parts | year = year }
 
 -- function that finds the nth weekday of whatever month is in the given Parts
-nthWeekday : Int -> Weekday -> Parts -> Int -> Zone -> Posix
-nthWeekday n weekday parts year zone =
-    nthWeekdayReal 0 n weekday parts year zone
-nthWeekdayReal : Int -> Int -> Weekday -> Parts -> Int -> Zone -> Posix
-nthWeekdayReal offset n weekday parts year zone =
+nthWeekdayOffset : Int -> Int -> Weekday -> Parts -> Int -> Zone -> Posix
+nthWeekdayOffset offset n weekday parts year zone =
     let
-        tryPosix = partsToPosix zone { parts | year = year, day = 1 + offset + (n-1)*7 }
+        tryPosix = (partsToPosix zone { parts | year = year, day = 1 + (n-1)*7 } |> posixToMillis) + offset * day
+                 |> millisToPosix
     in
         if (toWeekday zone tryPosix) == weekday then
             tryPosix
         else
-            nthWeekdayReal (offset+1) n weekday parts year zone -- inefficient but simple and we'll never do more than 6
+            nthWeekdayOffset (offset+1) n weekday parts year zone -- inefficient but simple and we'll never do more than 6
+
+nthWeekday = nthWeekdayOffset 0
 
 -- function that finds the nth day preceding a given date that is a particular weekday, e.g. 1st Monday
 -- preceding May 25
@@ -82,7 +85,7 @@ nthPreceding : Int -> Weekday -> Parts -> Int -> Zone -> Posix
 nthPreceding n weekday parts year zone =
     let
         baseDate = partsToPosix zone { parts | year = year }
-        precedingDay = (posixToMillis baseDate) - (86400000 + (n-1)*86400000*7) |> millisToPosix
+        precedingDay = (posixToMillis baseDate) - (day + (n-1)*day*7) |> millisToPosix
     in
         nthPrecedingReal precedingDay weekday parts year zone
 nthPrecedingReal : Posix -> Weekday -> Parts -> Int -> Zone -> Posix
@@ -90,7 +93,7 @@ nthPrecedingReal posix weekday parts year zone =
     if (toWeekday zone posix) == weekday then
         posix
     else
-        nthPrecedingReal ((posixToMillis posix) - 86400000 |> millisToPosix) weekday parts year zone
+        nthPrecedingReal ((posixToMillis posix) - day |> millisToPosix) weekday parts year zone
 
 -- given an Event and the current time, return a NextEvent with everything computed
 eventToNextEvent : Posix -> Zone -> Event -> NextEvent
@@ -121,7 +124,7 @@ events = [ { name = "Christmas Day"
         , { name = "Remembrance Day"
           , nextFinder = exactDate { baseParts | month = Nov, day = 11, hour = 11, minute = 11 }
           }
-        , { name = "National Day for Truth and Reconciliation"
+        , { name = "Orange Shirt Day (T&R)"
           , nextFinder = exactDate { baseParts | month = Sep, day = 30 }
           }
         , { name = "Halloween"
@@ -139,11 +142,20 @@ events = [ { name = "Christmas Day"
         , { name = "Family Day"
           , nextFinder = nthWeekday 3 Mon { baseParts | month = Feb }
           }
+        , { name = "Civic Holiday"
+          , nextFinder = nthWeekday 1 Mon { baseParts | month = Aug }
+          }
+        , { name = "Thanksgiving"
+          , nextFinder = nthWeekday 2 Mon { baseParts | month = Oct }
+          }
+        , { name = "Black Friday"
+          , nextFinder = nthWeekdayOffset 1 4 Thu { baseParts | month = Nov }
+          }
         , { name = "Victoria Day"
           , nextFinder = nthPreceding 1 Mon { baseParts | month = May, day = 25 }
           }
         , { name = "Test Day"
-          , nextFinder = exactDate { baseParts | month = Feb, day = 25, hour = 9, minute = 50 }
+          , nextFinder = nthWeekday 4 Sun { baseParts | month = Feb, hour = 17, minute = 11 }
           }
         ]
 
