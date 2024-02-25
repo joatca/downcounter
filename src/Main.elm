@@ -127,7 +127,7 @@ init _ =
         epoch =
             millisToPosix 0
     in
-        ( Model zone epoch (makeNextEvents epoch zone |> List.sortWith compareNextEvent)
+        ( Model zone epoch []
         , Task.perform AdjustTimeZone Time.here
         )
 
