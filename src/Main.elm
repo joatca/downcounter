@@ -7,7 +7,7 @@ import Html exposing (Html)
 --import Html.Attributes
 import Dict exposing (Dict)
 import Task
-import Time exposing (Zone, Posix, toYear, Month(..), posixToMillis, millisToPosix, utc)
+import Time exposing (Zone, Posix, toYear, toWeekday, Weekday(..), Month(..), posixToMillis, millisToPosix, utc)
 import Time.Extra exposing (Parts, partsToPosix)
 import Debug
 import Element exposing (Element, el, text, column, table,
@@ -27,9 +27,11 @@ main =
 
       
 -- MODEL
+-- a date finder function takes a year and a time zone and returns a date in that year
+type alias DateFinder = (Int -> Zone -> Posix)
 type alias Event =
     { name : String
-    , parts : Parts -- for an event of non-zero duration, this is the *end*
+    , nextFinder : DateFinder
     }
 type alias NextEvent =
     { name : String
@@ -55,13 +57,47 @@ hms = [ { name = "s", suffix = "", div = 60, pad = 2 }
       , { name = "d", suffix = "d ", div = 1000000, pad = 3 }
       ]
 
+-- identity date finder function; replaces only the given year and returns the exact datetime
+exactDate : Parts -> Int -> Zone -> Posix
+exactDate parts year zone =
+    partsToPosix zone { parts | year = year }
+
+-- function that finds the nth weekday of whatever month is in the given Parts
+nthWeekday : Int -> Weekday -> Parts -> Int -> Zone -> Posix
+nthWeekday n weekday parts year zone =
+    nthWeekdayReal 0 n weekday parts year zone
+nthWeekdayReal : Int -> Int -> Weekday -> Parts -> Int -> Zone -> Posix
+nthWeekdayReal offset n weekday parts year zone =
+    let
+        tryPosix = partsToPosix zone { parts | year = year, day = 1 + offset + (n-1)*7 }
+    in
+        if (toWeekday zone tryPosix) == weekday then
+            tryPosix
+        else
+            nthWeekdayReal (offset+1) n weekday parts year zone -- inefficient but simple and we'll never do more than 6
+
+-- function that finds the nth day preceding a given date that is a particular weekday, e.g. 1st Monday
+-- preceding May 25
+nthPreceding : Int -> Weekday -> Parts -> Int -> Zone -> Posix
+nthPreceding n weekday parts year zone =
+    let
+        baseDate = partsToPosix zone { parts | year = year }
+        precedingDay = (posixToMillis baseDate) - (86400000 + (n-1)*86400000*7) |> millisToPosix
+    in
+        nthPrecedingReal precedingDay weekday parts year zone
+nthPrecedingReal : Posix -> Weekday -> Parts -> Int -> Zone -> Posix
+nthPrecedingReal posix weekday parts year zone =
+    if (toWeekday zone posix) == weekday then
+        posix
+    else
+        nthPrecedingReal ((posixToMillis posix) - 86400000 |> millisToPosix) weekday parts year zone
+
 -- given an Event and the current time, return a NextEvent with everything computed
 eventToNextEvent : Posix -> Zone -> Event -> NextEvent
 eventToNextEvent now zone event =
     let
         year = toYear zone now
-        parts = event.parts
-        posixThisYear = partsToPosix zone { parts | year = year }
+        posixThisYear = event.nextFinder year zone
         thisYearMillis = posixToMillis posixThisYear
         nowMillis = posixToMillis now
         eventTime = if thisYearMillis >= nowMillis then
@@ -69,36 +105,45 @@ eventToNextEvent now zone event =
                         posixThisYear
                     else
                         -- the event this year is in the past, find it for next year
-                        partsToPosix zone { parts | year = year + 1 }
+                        event.nextFinder (year+1) zone
     in
         { name = event.name
         , eventTime = eventTime
         }
 
-baseParts = { year = 0, month = Jan, day = 1, hour = 0, minute = 0, second = 0, millisecond = 0 }
+baseParts = { year = 0, month = Jan, day = 0, hour = 0, minute = 0, second = 0, millisecond = 0 }
 events = [ { name = "Christmas Day"
-          , parts = { baseParts | month = Dec, day = 25 }
+          , nextFinder = exactDate { baseParts | month = Dec, day = 25 }
           }
         , { name = "New Year's Day"
-          , parts = { baseParts | month = Jan, day = 1 }
+          , nextFinder = exactDate { baseParts | month = Jan, day = 1 }
           }
         , { name = "Remembrance Day"
-          , parts = { baseParts | month = Nov, day = 11, hour = 11, minute = 11 }
+          , nextFinder = exactDate { baseParts | month = Nov, day = 11, hour = 11, minute = 11 }
           }
         , { name = "National Day for Truth and Reconciliation"
-          , parts = { baseParts | month = Sep, day = 30 }
+          , nextFinder = exactDate { baseParts | month = Sep, day = 30 }
           }
         , { name = "Halloween"
-          , parts = { baseParts | month = Oct, day = 31 }
+          , nextFinder = exactDate { baseParts | month = Oct, day = 31 }
           }
         , { name = "Valentine's Day"
-          , parts = { baseParts | month = Feb, day = 14 }
+          , nextFinder = exactDate { baseParts | month = Feb, day = 14 }
           }
         , { name = "Canada Day"
-          , parts = { baseParts | month = Jul, day = 1 }
+          , nextFinder = exactDate { baseParts | month = Jul, day = 1 }
+          }
+        , { name = "Labour Day"
+          , nextFinder = nthWeekday 1 Mon { baseParts | month = Sep }
+          }
+        , { name = "Family Day"
+          , nextFinder = nthWeekday 3 Mon { baseParts | month = Feb }
+          }
+        , { name = "Victoria Day"
+          , nextFinder = nthPreceding 1 Mon { baseParts | month = May, day = 25 }
           }
         , { name = "Test Day"
-          , parts = { baseParts | month = Feb, day = 25, hour = 9, minute = 50 }
+          , nextFinder = exactDate { baseParts | month = Feb, day = 25, hour = 9, minute = 50 }
           }
         ]
 
