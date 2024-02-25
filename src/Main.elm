@@ -109,6 +109,10 @@ events = [ { name = "Christmas Day"
           , parts = { baseParts | month = Jul, day = 1 }
           , duration = 24*60*60
           }
+        , { name = "Test Day"
+          , parts = { baseParts | month = Feb, day = 24, hour = 22, minute = 28 }
+          , duration = 24*60*60
+          }
         ]
 
 makeNextEvents : Posix -> Zone -> List NextEvent
@@ -140,15 +144,28 @@ type Msg
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
-    Tick newTime ->
-      ( { model | time = newTime, nextEvents = makeNextEvents newTime model.zone |> List.sortWith compareNextEvent }
-      , Cmd.none
-      )
-
-    AdjustTimeZone newZone ->
-      ( { model | zone = newZone }
-      , Cmd.none
-      )
+      Tick newTime ->
+          let
+              firstEvent = List.head model.nextEvents
+              recompute = case firstEvent of
+                              Nothing ->
+                                  True
+                              Just first ->
+                                  (posixToMillis first.eventTime) < (posixToMillis newTime)
+          in
+              if recompute then
+                  ( { model | time = newTime, nextEvents = makeNextEvents newTime model.zone |> List.sortWith compareNextEvent }
+                  , Cmd.none
+                  )
+              else
+                  ( { model | time = newTime }
+                  , Cmd.none
+                  )
+              
+      AdjustTimeZone newZone ->
+          ( { model | zone = newZone }
+          , Cmd.none
+          )
 
         
 -- SUBSCRIPTIONS
