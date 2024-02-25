@@ -1,11 +1,3 @@
--- Show the current time in your time zone.
---
--- Read how it works:
---   https://guide.elm-lang.org/effects/time.html
---
--- For an analog clock, check out this SVG example:
---   https://elm-lang.org/examples/clock
---
 
 module Main exposing (..)
 
@@ -46,9 +38,7 @@ type Relation
 type alias NextEvent =
     { name : String
     --, relation : Relation
-    , timeSpan : Int
-    --, nextEvent : Posix
-    , unitVals : UnitVals
+    , eventTime : Posix
     }
 type alias Unit =
     { suffix : String
@@ -64,20 +54,12 @@ type alias Model =
     }
 
 -- given a time span in seconds, return a UnitVals dictionary
-hms = [ { name = "m", suffix = ":", div = 60, pad = 2 }
+hms = [ { name = "s", suffix = "", div = 60, pad = 2 }
+      , { name = "m", suffix = ":", div = 60, pad = 2 }
       , { name = "h", suffix = ":", div = 24, pad = 2 }
       , { name = "d", suffix = "d ", div = 1000000, pad = 3 }
       ]
-secsToUnits : List Unit -> Int -> UnitVals
-secsToUnits unitList remaining =
-    case unitList of
-        [] ->
-            Dict.empty
-        unit :: units ->
-            Dict.insert unit.name
-                -- don't take the modulus if this is the last one
-                (if List.isEmpty units then remaining else modBy unit.div remaining)
-                (secsToUnits units (remaining // unit.div))
+
 -- given an Event and the current time, return a NextEvent with everything computed
 eventToNextEvent : Posix -> Zone -> Event -> NextEvent
 eventToNextEvent now zone event =
@@ -85,18 +67,17 @@ eventToNextEvent now zone event =
         year = toYear zone now
         parts = event.parts
         posixThisYear = partsToPosix zone { parts | year = year }
-        timeFinal = if (posixToMillis posixThisYear) >= (posixToMillis now) then
+        thisYearMillis = posixToMillis posixThisYear
+        nowMillis = posixToMillis now
+        eventTime = if thisYearMillis >= nowMillis then
                         -- the event this year is in the future
                         posixThisYear
                     else
                         -- the event this year is in the past, find it for next year
                         partsToPosix zone { parts | year = year + 1 }
-        timeSpan = (posixToMillis timeFinal) - (posixToMillis now)
-        unitVals = secsToUnits hms (timeSpan//60000)
     in
         { name = event.name
-        , timeSpan = timeSpan
-        , unitVals = unitVals
+        , eventTime = eventTime
         }
 
 baseParts = { year = 0, month = Jan, day = 1, hour = 0, minute = 0, second = 0, millisecond = 0 }
@@ -129,6 +110,7 @@ events = [ { name = "Christmas Day"
           , duration = 24*60*60
           }
         ]
+
 makeNextEvents : Posix -> Zone -> List NextEvent
 makeNextEvents now zone =
     List.map (eventToNextEvent now zone) events
@@ -138,12 +120,16 @@ init _ =
     let
         zone =
             utc
-        now =
+        epoch =
             millisToPosix 0
     in
-        ( Model zone now (makeNextEvents now zone |> List.sortBy .timeSpan)
+        ( Model zone epoch (makeNextEvents epoch zone |> List.sortWith compareNextEvent)
         , Task.perform AdjustTimeZone Time.here
         )
+
+compareNextEvent : NextEvent -> NextEvent -> Order
+compareNextEvent a b =
+    compare (posixToMillis a.eventTime) (posixToMillis b.eventTime)
 
     
 -- UPDATE
@@ -155,7 +141,7 @@ update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
     Tick newTime ->
-      ( { model | time = newTime, nextEvents = makeNextEvents newTime model.zone |> List.sortBy .timeSpan }
+      ( { model | time = newTime, nextEvents = makeNextEvents newTime model.zone |> List.sortWith compareNextEvent }
       , Cmd.none
       )
 
@@ -173,40 +159,37 @@ subscriptions model =
       
 -- VIEW
 view : Model -> Html Msg
--- view model =
---       div [] [ div [] (List.map viewNextEvent model.NextEvents)
---              ]
 view model =
     Element.layout []
         (column [ width fill, centerX ]
-            [ text "Countdown"
-            , table []
-                { data = model.nextEvents
-                , columns =
-                    [ { header = text "Name"
-                      , width = fill
-                      , view =
-                          \ctr -> text ctr.name
-                      }
-                    , { header = text "D"
-                      , width = shrink
-                      , view =
-                          \ctr -> text (viewNum 2 "D" (Dict.get "d" ctr.unitVals))
-                      }
-                    , { header = text "H"
-                      , width = shrink
-                      , view =
-                          \ctr -> text (viewNum 2 ":" (Dict.get "h" ctr.unitVals))
-                      }
-                    , { header = text "M"
-                      , width = shrink
-                      , view =
-                          \ctr -> text (viewNum 2 "" (Dict.get "m" ctr.unitVals))
-                      }
-                    ]
-                }
-            ])
+             (List.map (viewNextEvent model.time) model.nextEvents)
+        )
 
+viewNextEvent : Posix -> NextEvent -> Element Msg
+viewNextEvent time nextEvent =
+    let
+        parts = secsToParts hms ((subtractPosix nextEvent.eventTime time) // 1000)
+    in
+        text (nextEvent.name ++ " " ++ (viewNum 3 "d " (Dict.get "d" parts))
+                  ++ (viewNum 2 ":" (Dict.get "h" parts))
+                  ++ (viewNum 2 ":" (Dict.get "m" parts))
+                  ++ (viewNum 2 "" (Dict.get "s" parts))
+             )
+
+subtractPosix : Posix -> Posix -> Int
+subtractPosix a b =
+    (posixToMillis a) - (posixToMillis b)
+                                                       
+secsToParts : List Unit -> Int -> UnitVals
+secsToParts unitList remaining =
+    case unitList of
+        [] ->
+            Dict.empty
+        unit :: units ->
+            Dict.insert unit.name
+                -- don't take the modulus if this is the last one
+                (if List.isEmpty units then remaining else modBy unit.div remaining)
+                (secsToParts units (remaining // unit.div))
 viewNum : Int -> String -> Maybe Int -> String
 viewNum pad suffix val =
     (val |> withDefault 0 |> String.fromInt |> String.pad pad '0') ++ suffix
