@@ -30,14 +30,9 @@ main =
 type alias Event =
     { name : String
     , parts : Parts -- for an event of non-zero duration, this is the *end*
-    , duration : Int -- duration in milliseconds
     }
-type Relation
-    = Before
-    | During
 type alias NextEvent =
     { name : String
-    --, relation : Relation
     , eventTime : Posix
     }
 type alias Unit =
@@ -83,35 +78,27 @@ eventToNextEvent now zone event =
 baseParts = { year = 0, month = Jan, day = 1, hour = 0, minute = 0, second = 0, millisecond = 0 }
 events = [ { name = "Christmas Day"
           , parts = { baseParts | month = Dec, day = 25 }
-          , duration = 24*60*60
           }
         , { name = "New Year's Day"
           , parts = { baseParts | month = Jan, day = 1 }
-          , duration = 24*60*60
           }
         , { name = "Remembrance Day"
           , parts = { baseParts | month = Nov, day = 11, hour = 11, minute = 11 }
-          , duration = 24*60*60
           }
         , { name = "National Day for Truth and Reconciliation"
           , parts = { baseParts | month = Sep, day = 30 }
-          , duration = 24*60*60
           }
         , { name = "Halloween"
           , parts = { baseParts | month = Oct, day = 31 }
-          , duration = 24*60*60
           }
         , { name = "Valentine's Day"
           , parts = { baseParts | month = Feb, day = 14 }
-          , duration = 24*60*60
           }
         , { name = "Canada Day"
           , parts = { baseParts | month = Jul, day = 1 }
-          , duration = 24*60*60
           }
         , { name = "Test Day"
-          , parts = { baseParts | month = Feb, day = 24, hour = 22, minute = 28 }
-          , duration = 24*60*60
+          , parts = { baseParts | month = Feb, day = 25, hour = 9, minute = 50 }
           }
         ]
 
