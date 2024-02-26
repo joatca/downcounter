@@ -213,7 +213,7 @@ update msg model =
               
       AdjustTimeZone newZone ->
           ( { model | zone = newZone }
-          , Cmd.none
+          , Task.perform Tick Time.now
           )
 
         
