@@ -7,7 +7,9 @@ import Html exposing (Html)
 --import Html.Attributes
 import Dict exposing (Dict)
 import Task
-import Time exposing (Zone, Posix, toYear, toWeekday, Weekday(..), Month(..), posixToMillis, millisToPosix, utc)
+import Time exposing (Zone, Posix, toYear, toWeekday, toMonth
+                     , toDay, toHour, toMinute, Weekday(..), Month(..)
+                     , posixToMillis, millisToPosix, utc)
 import Time.Extra exposing (Parts, partsToPosix)
 import Debug
 import Element exposing (Element, el, text, column, table,
@@ -50,7 +52,6 @@ type alias Model =
     , nextEvents : List NextEvent
     }
 
--- given a time span in seconds, return a UnitVals dictionary
 hms = [ { name = "s", suffix = "", div = 60, pad = 2 }
       , { name = "m", suffix = ":", div = 60, pad = 2 }
       , { name = "h", suffix = ":", div = 24, pad = 2 }
@@ -78,6 +79,10 @@ nthWeekdayOffset offset n weekday parts year zone =
             nthWeekdayOffset (offset+1) n weekday parts year zone -- inefficient but simple and we'll never do more than 6
 
 nthWeekday = nthWeekdayOffset 0
+
+nthWeekdayPlusDays : Int -> Int -> Weekday -> Parts -> Int -> Zone -> Posix
+nthWeekdayPlusDays addDays n weekday parts year zone =
+    (nthWeekday n weekday parts year zone |> posixToMillis) + addDays * day |> millisToPosix
 
 -- function that finds the nth day preceding a given date that is a particular weekday, e.g. 1st Monday
 -- preceding May 25
@@ -121,8 +126,8 @@ events = [ { name = "Christmas Day"
         , { name = "New Year's Day"
           , nextFinder = exactDate { baseParts | month = Jan, day = 1 }
           }
-        , { name = "Remembrance Day"
-          , nextFinder = exactDate { baseParts | month = Nov, day = 11, hour = 11, minute = 11 }
+        , { name = "Remembrance Day 11th hour"
+          , nextFinder = exactDate { baseParts | month = Nov, day = 11, hour = 11 }
           }
         , { name = "Orange Shirt Day (T&R)"
           , nextFinder = exactDate { baseParts | month = Sep, day = 30 }
@@ -149,14 +154,14 @@ events = [ { name = "Christmas Day"
           , nextFinder = nthWeekday 2 Mon { baseParts | month = Oct }
           }
         , { name = "Black Friday"
-          , nextFinder = nthWeekdayOffset 1 4 Thu { baseParts | month = Nov }
+          , nextFinder = nthWeekdayPlusDays 1 4 Thu { baseParts | month = Nov }
           }
         , { name = "Victoria Day"
           , nextFinder = nthPreceding 1 Mon { baseParts | month = May, day = 25 }
           }
-        , { name = "Test Day"
-          , nextFinder = nthWeekday 4 Sun { baseParts | month = Feb, hour = 17, minute = 11 }
-          }
+        -- , { name = "Test Day"
+        --   , nextFinder = nthPreceding 1 Sun { baseParts | month = Feb, day = 27, hour = 19, minute = 1 }
+        --   }
         ]
 
 makeNextEvents : Posix -> Zone -> List NextEvent
@@ -223,19 +228,50 @@ view : Model -> Html Msg
 view model =
     Element.layout []
         (column [ width fill, centerX ]
-             (List.map (viewNextEvent model.time) model.nextEvents)
+             (List.map (viewNextEvent model.zone model.time) model.nextEvents)
         )
 
-viewNextEvent : Posix -> NextEvent -> Element Msg
-viewNextEvent time nextEvent =
+viewNextEvent : Zone -> Posix -> NextEvent -> Element Msg
+viewNextEvent zone time nextEvent =
     let
-        parts = secsToParts hms ((subtractPosix nextEvent.eventTime time) // 1000)
+        evTime = nextEvent.eventTime
+        parts = secsToParts hms ((subtractPosix evTime time) // 1000)
     in
-        text (nextEvent.name ++ " " ++ (viewNum 3 "d " (Dict.get "d" parts))
-                  ++ (viewNum 2 ":" (Dict.get "h" parts))
-                  ++ (viewNum 2 ":" (Dict.get "m" parts))
-                  ++ (viewNum 2 "" (Dict.get "s" parts))
-             )
+        column [ width fill, centerX, padding 2 ]
+            [ el [ width fill
+                 , padding 2
+                 , Font.size 28
+                 , Font.regular
+                 , Font.center
+                 ]
+                  (text nextEvent.name)
+            , el [ width fill
+                 , padding 2
+                 , Font.size 14
+                 , Font.center
+                 , Font.italic
+                 ]
+                  (text ((viewNum 0 "-" (toYear zone evTime)
+                              ++ (viewMonth 0 "-" (toMonth zone evTime))
+                              ++ (viewNum 2 " " (toDay zone evTime))
+                              ++ (viewNum 2 ":" (toHour zone evTime))
+                              ++ (viewNum 2 "" (toMinute zone evTime))
+                         )
+                        )
+                  )
+            , el [ width fill
+                 , Font.size 24
+                 , Font.bold
+                 , Font.center
+                 , Font.variantList [ Font.tabularNumbers ]
+                 ]
+                  (text ((maybeViewNum 3 "d " (Dict.get "d" parts))
+                             ++ (maybeViewNum 2 ":" (Dict.get "h" parts))
+                             ++ (maybeViewNum 2 ":" (Dict.get "m" parts))
+                             ++ (maybeViewNum 2 "" (Dict.get "s" parts))
+                        )
+                  )
+            ]
 
 subtractPosix : Posix -> Posix -> Int
 subtractPosix a b =
@@ -251,6 +287,29 @@ secsToParts unitList remaining =
                 -- don't take the modulus if this is the last one
                 (if List.isEmpty units then remaining else modBy unit.div remaining)
                 (secsToParts units (remaining // unit.div))
-viewNum : Int -> String -> Maybe Int -> String
+
+
+maybeViewNum : Int -> String -> Maybe Int -> String
+maybeViewNum pad suffix val =
+    viewNum pad suffix (withDefault 0 val)
+
+viewNum : Int -> String -> Int -> String
 viewNum pad suffix val =
-    (val |> withDefault 0 |> String.fromInt |> String.pad pad '0') ++ suffix
+    ((String.fromInt val) |> String.pad pad '0') ++ suffix
+
+viewMonth : Int -> String -> Month -> String
+viewMonth pad suffix val =
+    ((case val of
+          Jan -> "January"
+          Feb -> "February"
+          Mar -> "March"
+          Apr -> "April"
+          May -> "May"
+          Jun -> "June"
+          Jul -> "July"
+          Aug -> "August"
+          Sep -> "September"
+          Oct -> "October"
+          Nov -> "November"
+          Dec -> "December"
+     ) |> String.pad pad ' ') ++ suffix
