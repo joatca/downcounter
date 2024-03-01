@@ -23,6 +23,7 @@ import Time exposing (Zone, Posix, toYear, toWeekday, toMonth
                      , toDay, toHour, toMinute, Weekday(..), Month(..)
                      , posixToMillis, millisToPosix, utc)
 import Time.Extra exposing (Parts, partsToPosix)
+import Process exposing (sleep)
 import Debug
 import Element exposing (Element, el, text, column, table,
                              fill, shrink, width, rgb255, spacing, centerX, padding)
@@ -201,38 +202,51 @@ compareNextEvent a b =
 type Msg
   = Tick Posix
   | AdjustTimeZone Zone
+  | WaitTimeOver
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
-      Tick newTime ->
+      Tick tickTime ->
           let
+              roundedTime = (posixToMillis tickTime) // 1000 * 1000 |> millisToPosix
               firstEvent = List.head model.nextEvents
               recompute = case firstEvent of
                               Nothing ->
                                   True
                               Just first ->
-                                  (posixToMillis first.eventTime) < (posixToMillis newTime)
+                                  (posixToMillis first.eventTime) < (posixToMillis roundedTime)
           in
               if recompute then
-                  ( { model | time = newTime, nextEvents = makeNextEvents newTime model.zone |> List.sortWith compareNextEvent }
-                  , Cmd.none
+                  ( { model | time = roundedTime, nextEvents = makeNextEvents roundedTime model.zone |> List.sortWith compareNextEvent }
+                  , scheduleNextTick tickTime
                   )
               else
-                  ( { model | time = newTime }
-                  , Cmd.none
+                  ( { model | time = roundedTime }
+                  , scheduleNextTick tickTime
                   )
+
+      WaitTimeOver ->
+          ( model
+          , Task.perform Tick Time.now
+          )
               
       AdjustTimeZone newZone ->
           ( { model | zone = newZone }
           , Task.perform Tick Time.now
           )
 
+scheduleNextTick : Posix -> Cmd Msg
+scheduleNextTick fromTime =
+    let
+        remaining = toFloat (1000 - modBy 1000 (posixToMillis fromTime))
+    in
+        Process.sleep remaining |> Task.perform (\_ -> WaitTimeOver)
         
 -- SUBSCRIPTIONS
 subscriptions : Model -> Sub Msg
 subscriptions model =
-  Time.every 1000 Tick
+  Sub.none
 
       
 -- VIEW
