@@ -70,6 +70,79 @@ hms = [ { name = "s", suffix = "", div = 60, pad = 2 }
       , { name = "h", suffix = ":", div = 24, pad = 2 }
       , { name = "d", suffix = "d ", div = 1000000, pad = 3 }
       ]
+-- given an Event and the current time, return a NextEvent with everything computed
+eventToNextEvent : Posix -> Zone -> Event -> NextEvent
+eventToNextEvent now zone event =
+    let
+        year = toYear zone now
+        posixThisYear = event.nextFinder year zone
+        thisYearMillis = posixToMillis posixThisYear
+        nowMillis = posixToMillis now
+        eventTime = if thisYearMillis >= nowMillis then
+                        -- the event this year is in the future
+                        posixThisYear
+                    else
+                        -- the event this year is in the past, find it for next year
+                        event.nextFinder (year+1) zone
+    in
+        { name = event.name
+        , eventTime = eventTime
+        }
+
+
+-- the table below contains partial functions based on the routines that follow; each is called for the current
+-- year and if it returns a time in the past then it is called for the following year
+-- 
+-- "exactDate { baseParts | month = Sep, day = 30 }" is the exact date September 30
+-- "nthWeekday 3 Mon { baseParts | month = Feb }" is the 3rd Monday in February
+-- "nthWeekdayPlusDays 1 4 Thu { baseParts | month = Nov }" is 1 day after the 4th Thursday in November
+-- "nthPreceding 1 Mon { baseParts | month = May, day = 25 }" is the first Monday preceding May 25
+-- "easterSunday baseParts" computes Gregorian Easter Sunday, parts are passed as a convenience
+
+baseParts = { year = 0, month = Jan, day = 0, hour = 0, minute = 0, second = 0, millisecond = 0 }
+events = [ { name = "Christmas Day"
+          , nextFinder = exactDate { baseParts | month = Dec, day = 25 }
+          }
+        , { name = "New Year's Day"
+          , nextFinder = exactDate { baseParts | month = Jan, day = 1 }
+          }
+        , { name = "Remembrance Day 11th hour"
+          , nextFinder = exactDate { baseParts | month = Nov, day = 11, hour = 11 }
+          }
+        , { name = "Orange Shirt Day (T&R)"
+          , nextFinder = exactDate { baseParts | month = Sep, day = 30 }
+          }
+        , { name = "Halloween"
+          , nextFinder = exactDate { baseParts | month = Oct, day = 31 }
+          }
+        , { name = "Valentine's Day"
+          , nextFinder = exactDate { baseParts | month = Feb, day = 14 }
+          }
+        , { name = "Canada Day"
+          , nextFinder = exactDate { baseParts | month = Jul, day = 1 }
+          }
+        , { name = "Labour Day"
+          , nextFinder = nthWeekday 1 Mon { baseParts | month = Sep }
+          }
+        , { name = "Family Day"
+          , nextFinder = nthWeekday 3 Mon { baseParts | month = Feb }
+          }
+        , { name = "Civic Holiday"
+          , nextFinder = nthWeekday 1 Mon { baseParts | month = Aug }
+          }
+        , { name = "Thanksgiving"
+          , nextFinder = nthWeekday 2 Mon { baseParts | month = Oct }
+          }
+        , { name = "Black Friday"
+          , nextFinder = nthWeekdayPlusDays 1 4 Thu { baseParts | month = Nov }
+          }
+        , { name = "Victoria Day"
+          , nextFinder = nthPreceding 1 Mon { baseParts | month = May, day = 25 }
+          }
+        , { name = "Easter Sunday"
+          , nextFinder = easterSunday baseParts
+          }
+        ]
 
 -- some "constants"
 day = 86400 * 1000
@@ -150,72 +223,6 @@ numToMonth monthNum =
           11 -> Nov
           _ -> Dec
 
--- given an Event and the current time, return a NextEvent with everything computed
-eventToNextEvent : Posix -> Zone -> Event -> NextEvent
-eventToNextEvent now zone event =
-    let
-        year = toYear zone now
-        posixThisYear = event.nextFinder year zone
-        thisYearMillis = posixToMillis posixThisYear
-        nowMillis = posixToMillis now
-        eventTime = if thisYearMillis >= nowMillis then
-                        -- the event this year is in the future
-                        posixThisYear
-                    else
-                        -- the event this year is in the past, find it for next year
-                        event.nextFinder (year+1) zone
-    in
-        { name = event.name
-        , eventTime = eventTime
-        }
-
-baseParts = { year = 0, month = Jan, day = 0, hour = 0, minute = 0, second = 0, millisecond = 0 }
-events = [ { name = "Christmas Day"
-          , nextFinder = exactDate { baseParts | month = Dec, day = 25 }
-          }
-        , { name = "New Year's Day"
-          , nextFinder = exactDate { baseParts | month = Jan, day = 1 }
-          }
-        , { name = "Remembrance Day 11th hour"
-          , nextFinder = exactDate { baseParts | month = Nov, day = 11, hour = 11 }
-          }
-        , { name = "Orange Shirt Day (T&R)"
-          , nextFinder = exactDate { baseParts | month = Sep, day = 30 }
-          }
-        , { name = "Halloween"
-          , nextFinder = exactDate { baseParts | month = Oct, day = 31 }
-          }
-        , { name = "Valentine's Day"
-          , nextFinder = exactDate { baseParts | month = Feb, day = 14 }
-          }
-        , { name = "Canada Day"
-          , nextFinder = exactDate { baseParts | month = Jul, day = 1 }
-          }
-        , { name = "Labour Day"
-          , nextFinder = nthWeekday 1 Mon { baseParts | month = Sep }
-          }
-        , { name = "Family Day"
-          , nextFinder = nthWeekday 3 Mon { baseParts | month = Feb }
-          }
-        , { name = "Civic Holiday"
-          , nextFinder = nthWeekday 1 Mon { baseParts | month = Aug }
-          }
-        , { name = "Thanksgiving"
-          , nextFinder = nthWeekday 2 Mon { baseParts | month = Oct }
-          }
-        , { name = "Black Friday"
-          , nextFinder = nthWeekdayPlusDays 1 4 Thu { baseParts | month = Nov }
-          }
-        , { name = "Victoria Day"
-          , nextFinder = nthPreceding 1 Mon { baseParts | month = May, day = 25 }
-          }
-        , { name = "Easter Sunday"
-          , nextFinder = easterSunday baseParts
-          }
-        -- , { name = "Test Day"
-        --   , nextFinder = nthPreceding 1 Sun { baseParts | month = Feb, day = 27, hour = 19, minute = 1 }
-        --   }
-        ]
 
 makeNextEvents : Posix -> Zone -> List NextEvent
 makeNextEvents now zone =
