@@ -128,7 +128,7 @@ easterSunday parts year zone =
         easterDay = (modBy 31 (d + e + 114)) + 1
         julian_easter = partsToPosix zone { parts | year = y, month = (numToMonth easterMonth), day = easterDay }
         -- next line works up to year 2099
-        gregorian_easter = (posixToMillis julian_easter) + 13*86400*1000 |> millisToPosix
+        gregorian_easter = (posixToMillis julian_easter) + 13*day |> millisToPosix
     in
         gregorian_easter
 
