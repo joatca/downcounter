@@ -113,6 +113,43 @@ nthPrecedingReal posix weekday parts year zone =
     else
         nthPrecedingReal ((posixToMillis posix) - day |> millisToPosix) weekday parts year zone
 
+-- given a year, find Easter Sunday of that year using Meeus' Julian algorithm
+-- https://en.wikipedia.org/wiki/Date_of_Easter#Meeus's_Julian_algorithm
+easterSunday : Parts -> Int -> Zone -> Posix
+easterSunday parts year zone =
+    let
+        y = year
+        a = modBy 4 y
+        b = modBy 7 y
+        c = modBy 19 y
+        d = modBy 30 (19*c + 15)
+        e = modBy 7 (2*a + 4*b - d + 34)
+        easterMonth = (d + e + 114) // 31
+        easterDay = (modBy 31 (d + e + 114)) + 1
+        julian_easter = partsToPosix zone { parts | year = y, month = (numToMonth easterMonth), day = easterDay }
+        -- next line works up to year 2099
+        gregorian_easter = (posixToMillis julian_easter) + 13*86400*1000 |> millisToPosix
+    in
+        gregorian_easter
+
+-- convert an integer month to a Month
+
+numToMonth : Int -> Month
+numToMonth monthNum =
+    case monthNum of
+          1 -> Jan
+          2 -> Feb
+          3 -> Mar
+          4 -> Apr
+          5 -> May
+          6 -> Jun
+          7 -> Jul
+          8 -> Aug
+          9 -> Sep
+          10 -> Oct
+          11 -> Nov
+          _ -> Dec
+
 -- given an Event and the current time, return a NextEvent with everything computed
 eventToNextEvent : Posix -> Zone -> Event -> NextEvent
 eventToNextEvent now zone event =
@@ -171,6 +208,9 @@ events = [ { name = "Christmas Day"
           }
         , { name = "Victoria Day"
           , nextFinder = nthPreceding 1 Mon { baseParts | month = May, day = 25 }
+          }
+        , { name = "Easter Sunday"
+          , nextFinder = easterSunday baseParts
           }
         -- , { name = "Test Day"
         --   , nextFinder = nthPreceding 1 Sun { baseParts | month = Feb, day = 27, hour = 19, minute = 1 }
