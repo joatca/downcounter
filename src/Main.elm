@@ -16,9 +16,9 @@ module Main exposing (..)
 import Maybe exposing (..)
 import Browser
 import Html exposing (Html)
---import Html.Attributes
 import Dict exposing (Dict)
 import Task
+import Round
 import Time exposing (Zone, Posix, toYear, toWeekday, toMonth
                      , toDay, toHour, toMinute, Weekday(..), Month(..)
                      , posixToMillis, millisToPosix, utc)
@@ -65,11 +65,11 @@ type alias Model =
     , nextEvents : List NextEvent
     }
 
-hms = [ { name = "s", suffix = "", div = 60, pad = 2 }
-      , { name = "m", suffix = ":", div = 60, pad = 2 }
-      , { name = "h", suffix = ":", div = 24, pad = 2 }
-      , { name = "d", suffix = "d ", div = 1000000, pad = 3 }
-      ]
+dhms = [ { name = "s", suffix = "", div = 60, pad = 2 }
+       , { name = "m", suffix = ":", div = 60, pad = 2 }
+       , { name = "h", suffix = ":", div = 24, pad = 2 }
+       , { name = "d", suffix = "d ", div = 1000000, pad = 3 }
+       ]
 -- given an Event and the current time, return a NextEvent with everything computed
 eventToNextEvent : Posix -> Zone -> Event -> NextEvent
 eventToNextEvent now zone event =
@@ -308,7 +308,8 @@ viewNextEvent : Zone -> Posix -> NextEvent -> Element Msg
 viewNextEvent zone time nextEvent =
     let
         evTime = nextEvent.eventTime
-        parts = secsToParts hms ((subtractPosix evTime time) // 1000)
+        remainingTime = (subtractPosix evTime time) // 1000
+        parts = secsToParts dhms remainingTime
     in
         column [ width fill, centerX, padding 2 ]
             [ el [ width fill
@@ -338,11 +339,15 @@ viewNextEvent zone time nextEvent =
                  , Font.center
                  , Font.variantList [ Font.tabularNumbers ]
                  ]
-                  (text ((maybeViewNum 3 "d " (Dict.get "d" parts))
-                             ++ (maybeViewNum 2 ":" (Dict.get "h" parts))
-                             ++ (maybeViewNum 2 ":" (Dict.get "m" parts))
-                             ++ (maybeViewNum 2 "" (Dict.get "s" parts))
-                        )
+                  (if remainingTime < 7*24*60*60 then
+                      (text ((maybeViewNum 3 "d " (Dict.get "d" parts))
+                                 ++ (maybeViewNum 2 ":" (Dict.get "h" parts))
+                                 ++ (maybeViewNum 2 ":" (Dict.get "m" parts))
+                                 ++ (maybeViewNum 2 "" (Dict.get "s" parts))
+                            )
+                      )
+                  else
+                      (text ((Round.round 1 ((toFloat remainingTime) / (24*60*60))) ++ " days"))
                   )
             ]
 
