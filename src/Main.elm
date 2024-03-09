@@ -133,6 +133,12 @@ events = [ { name = "Christmas Day"
         , { name = "Thanksgiving"
           , nextFinder = nthWeekday 2 Mon { baseParts | month = Oct }
           }
+        , { name = "Mother's Day"
+          , nextFinder = nthWeekday 2 Sun { baseParts | month = May }
+          }
+        , { name = "Father's Day"
+          , nextFinder = nthWeekday 3 Sun { baseParts | month = Jun }
+          }
         , { name = "Black Friday"
           , nextFinder = nthWeekdayPlusDays 1 4 Thu { baseParts | month = Nov }
           }
@@ -141,6 +147,12 @@ events = [ { name = "Christmas Day"
           }
         , { name = "Easter Sunday"
           , nextFinder = easterSunday baseParts
+          }
+        , { name = "International Women's Day"
+          , nextFinder = exactDate { baseParts | month = Mar, day = 8 }
+          }
+        , { name = "International Men's Day"
+          , nextFinder = exactDate { baseParts | month = Nov, day = 19 }
           }
         ]
 
