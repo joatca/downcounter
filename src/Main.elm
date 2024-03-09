@@ -100,61 +100,61 @@ eventToNextEvent now zone event =
 -- "easterSunday baseParts" computes Gregorian Easter Sunday, parts are passed as a convenience
 
 baseParts = { year = 0, month = Jan, day = 0, hour = 0, minute = 0, second = 0, millisecond = 0 }
-events = [ { name = "Christmas Day"
-          , nextFinder = exactDate { baseParts | month = Dec, day = 25 }
+events = [ { name = "New Year's Day"
+           , nextFinder = exactDate { baseParts | month = Jan, day = 1 }
+           }
+         , { name = "Valentine's Day"
+           , nextFinder = exactDate { baseParts | month = Feb, day = 14 }
+           }
+         , { name = "Family Day"
+           , nextFinder = nthWeekday 3 Mon { baseParts | month = Feb }
+           }
+         , { name = "International Women's Day"
+           , nextFinder = exactDate { baseParts | month = Mar, day = 8 }
+           }
+         , { name = "Easter Sunday"
+           , nextFinder = easterSunday baseParts
+           }
+         , { name = "Mother's Day"
+           , nextFinder = nthWeekday 2 Sun { baseParts | month = May }
+           }
+         , { name = "Victoria Day"
+           , nextFinder = nthPreceding 1 Mon { baseParts | month = May, day = 25 }
+           }
+         , { name = "Father's Day"
+           , nextFinder = nthWeekday 3 Sun { baseParts | month = Jun }
+           }
+         , { name = "Canada Day"
+           , nextFinder = exactDate { baseParts | month = Jul, day = 1 }
+           }
+         , { name = "Civic Holiday"
+           , nextFinder = nthWeekday 1 Mon { baseParts | month = Aug }
+           }
+         , { name = "Labour Day"
+           , nextFinder = nthWeekday 1 Mon { baseParts | month = Sep }
+           }
+         , { name = "Orange Shirt Day (T&R)"
+           , nextFinder = exactDate { baseParts | month = Sep, day = 30 }
+           }
+         , { name = "Thanksgiving"
+           , nextFinder = nthWeekday 2 Mon { baseParts | month = Oct }
+           }
+         , { name = "Halloween"
+           , nextFinder = exactDate { baseParts | month = Oct, day = 31 }
+           }
+         , { name = "Black Friday"
+           , nextFinder = nthWeekdayPlusDays 1 4 Thu { baseParts | month = Nov }
+           }
+         , { name = "Remembrance Day 11th hour"
+           , nextFinder = exactDate { baseParts | month = Nov, day = 11, hour = 11 }
           }
-        , { name = "New Year's Day"
-          , nextFinder = exactDate { baseParts | month = Jan, day = 1 }
-          }
-        , { name = "Remembrance Day 11th hour"
-          , nextFinder = exactDate { baseParts | month = Nov, day = 11, hour = 11 }
-          }
-        , { name = "Orange Shirt Day (T&R)"
-          , nextFinder = exactDate { baseParts | month = Sep, day = 30 }
-          }
-        , { name = "Halloween"
-          , nextFinder = exactDate { baseParts | month = Oct, day = 31 }
-          }
-        , { name = "Valentine's Day"
-          , nextFinder = exactDate { baseParts | month = Feb, day = 14 }
-          }
-        , { name = "Canada Day"
-          , nextFinder = exactDate { baseParts | month = Jul, day = 1 }
-          }
-        , { name = "Labour Day"
-          , nextFinder = nthWeekday 1 Mon { baseParts | month = Sep }
-          }
-        , { name = "Family Day"
-          , nextFinder = nthWeekday 3 Mon { baseParts | month = Feb }
-          }
-        , { name = "Civic Holiday"
-          , nextFinder = nthWeekday 1 Mon { baseParts | month = Aug }
-          }
-        , { name = "Thanksgiving"
-          , nextFinder = nthWeekday 2 Mon { baseParts | month = Oct }
-          }
-        , { name = "Mother's Day"
-          , nextFinder = nthWeekday 2 Sun { baseParts | month = May }
-          }
-        , { name = "Father's Day"
-          , nextFinder = nthWeekday 3 Sun { baseParts | month = Jun }
-          }
-        , { name = "Black Friday"
-          , nextFinder = nthWeekdayPlusDays 1 4 Thu { baseParts | month = Nov }
-          }
-        , { name = "Victoria Day"
-          , nextFinder = nthPreceding 1 Mon { baseParts | month = May, day = 25 }
-          }
-        , { name = "Easter Sunday"
-          , nextFinder = easterSunday baseParts
-          }
-        , { name = "International Women's Day"
-          , nextFinder = exactDate { baseParts | month = Mar, day = 8 }
-          }
-        , { name = "International Men's Day"
-          , nextFinder = exactDate { baseParts | month = Nov, day = 19 }
-          }
-        ]
+         , { name = "International Men's Day"
+           , nextFinder = exactDate { baseParts | month = Nov, day = 19 }
+           }
+         , { name = "Christmas Day"
+           , nextFinder = exactDate { baseParts | month = Dec, day = 25 }
+           }
+         ]
 
 -- some "constants"
 day = 86400 * 1000
