@@ -15,6 +15,7 @@ module Main exposing (..)
 
 import Maybe exposing (..)
 import Browser
+import Browser.Events as E
 import Html exposing (Html)
 import Dict exposing (Dict)
 import Task
@@ -59,8 +60,16 @@ type alias Unit =
     , pad : Int
     }
 type alias UnitVals = Dict String Int
+type alias Flags =
+    { width : Int
+    , height : Int
+    , ratio : Float
+    }
 type alias Model =
-    { zone : Zone
+    { width : Int
+    , height : Int
+    , pixelRatio : Float
+    , zone : Zone
     , time : Posix
     , nextEvents : List NextEvent
     }
@@ -112,6 +121,9 @@ events = [ { name = "New Year's Day"
          , { name = "International Women's Day"
            , nextFinder = exactDate { baseParts | month = Mar, day = 8 }
            }
+         , { name = "St. Patrick's Day"
+           , nextFinder = exactDate { baseParts | month = Mar, day = 17 }
+           }
          , { name = "Easter Sunday"
            , nextFinder = easterSunday baseParts
            }
@@ -154,6 +166,9 @@ events = [ { name = "New Year's Day"
          , { name = "Christmas Day"
            , nextFinder = exactDate { baseParts | month = Dec, day = 25 }
            }
+         -- , { name = "Test event"
+         --   , nextFinder = exactDate { baseParts | month = Mar, day = 10 }
+         --   }
          ]
 
 -- some "constants"
@@ -240,15 +255,19 @@ makeNextEvents : Posix -> Zone -> List NextEvent
 makeNextEvents now zone =
     List.map (eventToNextEvent now zone) events
 
-init : () -> (Model, Cmd Msg)
-init _ =
+init : Flags -> (Model, Cmd Msg)
+init flags =
     let
-        zone =
-            utc
-        epoch =
-            millisToPosix 0
+        zone = utc
+        epoch = millisToPosix 0
+        width = flags.width
+        height = flags.height
+        ratio = if flags.ratio == 0 then
+                    1
+                else
+                    flags.ratio
     in
-        ( Model zone epoch []
+        ( Model flags.width flags.height flags.ratio zone epoch []
         , Task.perform AdjustTimeZone Time.here
         )
 
@@ -261,6 +280,7 @@ compareNextEvent a b =
 type Msg
   = Tick Posix
   | AdjustTimeZone Zone
+  | Resized Int Int
   | WaitTimeOver
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -295,6 +315,11 @@ update msg model =
           , Task.perform Tick Time.now
           )
 
+      Resized w h ->
+          ( { model | width = w, height = h }
+          , Cmd.none
+          )
+
 scheduleNextTick : Posix -> Cmd Msg
 scheduleNextTick fromTime =
     let
@@ -305,35 +330,38 @@ scheduleNextTick fromTime =
 -- SUBSCRIPTIONS
 subscriptions : Model -> Sub Msg
 subscriptions model =
-  Sub.none
+  E.onResize (\w h -> Resized w h)
 
       
 -- VIEW
 view : Model -> Html Msg
 view model =
     Element.layout []
+        -- (text ((String.fromFloat model.pixelRatio)))
         (column [ width fill, centerX ]
-             (List.map (viewNextEvent model.zone model.time) model.nextEvents)
+             (List.map (viewNextEvent model) model.nextEvents)
         )
 
-viewNextEvent : Zone -> Posix -> NextEvent -> Element Msg
-viewNextEvent zone time nextEvent =
+viewNextEvent : Model -> NextEvent -> Element Msg
+viewNextEvent model nextEvent =
     let
         evTime = nextEvent.eventTime
         remainingTime = (subtractPosix evTime time) // 1000
         parts = secsToParts dhms remainingTime
+        zone = model.zone
+        time = model.time
     in
         column [ width fill, centerX, padding 2 ]
             [ el [ width fill
                  , padding 4
-                 , Font.size 28
+                 , Font.size (fontSize model.width model.pixelRatio 28)
                  , Font.regular
                  , Font.center
                  ]
                   (text nextEvent.name)
             , el [ width fill
                  , padding 2
-                 , Font.size 14
+                 , Font.size (fontSize model.width model.pixelRatio 14)
                  , Font.center
                  , Font.italic
                  ]
@@ -347,7 +375,7 @@ viewNextEvent zone time nextEvent =
                   )
             , el [ width fill
                  , padding 2
-                 , Font.size 24
+                 , Font.size (fontSize model.width model.pixelRatio 24)
                  , Font.bold
                  , Font.center
                  , Font.variantList [ Font.tabularNumbers ]
@@ -363,6 +391,10 @@ viewNextEvent zone time nextEvent =
                       (text ((Round.round 1 ((toFloat remainingTime) / (24*60*60))) ++ " days"))
                   )
             ]
+
+fontSize : Int -> Float -> Int -> Int
+fontSize width pixelRatio baseSize =
+    (toFloat baseSize) * pixelRatio |> round
 
 subtractPosix : Posix -> Posix -> Int
 subtractPosix a b =
