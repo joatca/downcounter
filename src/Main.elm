@@ -351,8 +351,8 @@ viewNextEvent zone time nextEvent =
                  , Font.center
                  , Font.variantList [ Font.tabularNumbers ]
                  ]
-                  (if remainingTime < 7*24*60*60 then
-                      (text ((maybeViewNum 3 "d " (Dict.get "d" parts))
+                  (if remainingTime < 30*24*60*60 then
+                      (text ((maybeViewNum 0 "d " (Dict.get "d" parts))
                                  ++ (maybeViewNum 2 ":" (Dict.get "h" parts))
                                  ++ (maybeViewNum 2 ":" (Dict.get "m" parts))
                                  ++ (maybeViewNum 2 "" (Dict.get "s" parts))
