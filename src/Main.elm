@@ -325,7 +325,7 @@ viewNextEvent zone time nextEvent =
     in
         column [ width fill, centerX, padding 2 ]
             [ el [ width fill
-                 , padding 2
+                 , padding 4
                  , Font.size 28
                  , Font.regular
                  , Font.center
@@ -346,6 +346,7 @@ viewNextEvent zone time nextEvent =
                         )
                   )
             , el [ width fill
+                 , padding 2
                  , Font.size 24
                  , Font.bold
                  , Font.center
