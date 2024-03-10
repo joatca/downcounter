@@ -16,6 +16,7 @@ module Main exposing (..)
 import Maybe exposing (..)
 import Browser
 import Browser.Events as E
+import Browser.Dom as Dom
 import Html exposing (Html)
 import Dict exposing (Dict)
 import Task
@@ -262,10 +263,7 @@ init flags =
         epoch = millisToPosix 0
         width = flags.width
         height = flags.height
-        ratio = if flags.ratio == 0 then
-                    1
-                else
-                    flags.ratio
+        ratio =  flags.ratio
     in
         ( Model flags.width flags.height flags.ratio zone epoch []
         , Task.perform AdjustTimeZone Time.here
