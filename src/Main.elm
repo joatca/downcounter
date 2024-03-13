@@ -214,24 +214,27 @@ nthPrecedingReal posix weekday parts year zone =
     else
         nthPrecedingReal ((posixToMillis posix) - day |> millisToPosix) weekday parts year zone
 
--- given a year, find Easter Sunday of that year using Meeus' Julian algorithm
--- https://en.wikipedia.org/wiki/Date_of_Easter#Meeus's_Julian_algorithm
+-- given a year, find Easter Sunday of that year using the Meeus/Jones/Butcher algorithm as modified by New
+-- Scientist https://en.wikipedia.org/wiki/Date_of_Easter#Anonymous_Gregorian_algorithm
 easterSunday : Parts -> Int -> Zone -> Posix
 easterSunday parts year zone =
     let
         y = year
-        a = modBy 4 y
-        b = modBy 7 y
-        c = modBy 19 y
-        d = modBy 30 (19*c + 15)
-        e = modBy 7 (2*a + 4*b - d + 34)
-        easterMonth = (d + e + 114) // 31
-        easterDay = (modBy 31 (d + e + 114)) + 1
-        julian_easter = partsToPosix zone { parts | year = y, month = (numToMonth easterMonth), day = easterDay }
-        -- next line works up to year 2099
-        gregorian_easter = (posixToMillis julian_easter) + 13*day |> millisToPosix
+        a = modBy 19 y
+        b = y // 100
+        c = modBy 100 y
+        d = b // 4
+        e = modBy 4 b
+        g = (8*b + 13) // 25
+        h = modBy 30 (19*a + b - d - g + 15)
+        i = c // 4
+        k = modBy 4 c
+        l = modBy 7 (32 + 2*e + 2*i - h - k)
+        m = (a + 11*h +19*l) // 433
+        n = (h + l - 7*m + 90) // 25
+        p = modBy 32 (h + l - 7*m + 33*n + 19)
     in
-        gregorian_easter
+        partsToPosix zone { parts | year = y, month = (numToMonth n), day = p }
 
 -- convert an integer month to a Month
 
